@@ -31,6 +31,8 @@ This project is an AI-assisted, Python-based stock portfolio analysis tool desig
 ├── main.py                 # Core logic and visualization
 ├── README.md               # Project documentation
 └── portfolio_analysis.xlsx # Auto-generated Excel output
+
+
 **🛠️ Possible Enhancements**
 This tool can be extended to support the following:
 
