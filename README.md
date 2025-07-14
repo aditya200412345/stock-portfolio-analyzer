@@ -31,19 +31,3 @@ This project is an AI-assisted, Python-based stock portfolio analysis tool desig
 ├── main.py                 # Core logic and visualization
 ├── README.md               # Project documentation
 └── portfolio_analysis.xlsx # Auto-generated Excel output
-
-
-**🛠️ Possible Enhancements**
-This tool can be extended to support the following:
-
-🔗 Live market data integration via APIs (e.g., Alpha Vantage, Yahoo Finance)
-
-📡 Notification system for price thresholds
-
-🧩 Integration with Streamlit or Dash for web-based dashboards
-
-📲 Mobile-friendly reports or alerts
-**
-📌 Author & Credits**    
-This repository was programmatically generated and refined using advanced AI capabilities.
-Maintained by: Aditya Naik & Radhika Kadu
