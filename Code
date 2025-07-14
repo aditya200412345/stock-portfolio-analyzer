@@ -1,0 +1,397 @@
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime, timedelta
+import warnings
+warnings.filterwarnings('ignore')
+
+# Set up plotting style
+plt.style.use('seaborn-v0_8')
+sns.set_palette("husl")
+
+class StockPortfolioAnalyzer:
+    def __init__(self, manual_current_prices=None):
+        # Portfolio holdings data
+        self.holdings = {
+            'Stock': ['TCS', 'INFY', 'RELIANCE', 'HDFCBANK', 'ICICIBANK', 'LT', 'SBIN', 'WIPRO', 'HINDUNILVR', 'AXISBANK'],
+            'Sector': ['IT', 'IT', 'Energy', 'Banking', 'Banking', 'Construction', 'Banking', 'IT', 'FMCG', 'Banking'],
+            'Quantity': [50, 53, 12, 78, 72, 65, 18, 32, 28, 32],
+            'Buy_Price': [1721.93, 2885.96, 3494.88, 1958.35, 826.46, 2761.13, 1496.11, 2824.76, 2208.97, 3073.29],
+            'PE_Ratio': [43.91, 32.45, 31.61, 38.22, 18.00, 15.17, 29.38, 38.33, 38.61, 44.38],
+            'PB_Ratio': [4.57, 4.84, 9.68, 3.46, 4.76, 6.22, 8.88, 4.36, 4.91, 3.57],
+            'EPS': [97.76, 94.00, 39.59, 60.74, 62.11, 77.57, 34.31, 74.28, 29.91, 10.28],
+            'Dividend_Yield': [3.83, 2.95, 0.91, 2.10, 3.37, 2.86, 2.90, 2.95, 1.41, 1.56],
+            'Buy_Date': ['2024-05-06', '2024-06-06', '2024-05-12', '2024-04-13', '2024-04-30', '2024-05-04', '2024-04-14', '2024-02-15', '2024-05-08', '2024-06-22']
+        }
+        
+        # Historical price data (last 30 days) - most recent price is the last value
+        self.price_history = {
+            'TCS': [781.03, 787.95, 788.94, 779.27, 731.52, 780.04, 760.98, 729.75, 742.77, 786.36, 786.05, 775.77, 758.06, 735.49, 732.84, 783.70, 752.64, 772.33, 780.50, 733.00, 763.77, 788.17, 772.42, 760.25, 778.56, 786.49, 732.83, 784.39, 734.80, 777.14],
+            'INFY': [2782.46, 2816.39, 2880.23, 2912.20, 2792.22, 2881.97, 2808.13, 2818.85, 2866.23, 2802.66, 2892.21, 2818.82, 2771.64, 2834.70, 2985.32, 2847.83, 2898.66, 2937.78, 2809.46, 2890.44, 2887.97, 2950.09, 2957.19, 2935.11, 2793.52, 2939.74, 2868.40, 2950.46, 2842.33, 2909.41],
+            'RELIANCE': [1548.51, 1578.90, 1539.74, 1613.39, 1583.20, 1615.30, 1604.56, 1640.52, 1618.72, 1541.50, 1558.78, 1639.67, 1573.39, 1619.45, 1577.47, 1563.75, 1655.32, 1579.83, 1556.89, 1590.06, 1562.48, 1606.55, 1557.68, 1641.74, 1568.45, 1558.48, 1606.00, 1600.31, 1556.85, 1556.98],
+            'HDFCBANK': [3027.80, 2889.42, 2991.51, 2997.79, 2843.05, 3041.61, 2815.10, 2849.02, 2902.26, 2964.41, 3037.35, 3004.19, 2915.15, 2873.93, 3035.14, 2938.11, 2890.94, 3042.88, 2865.64, 2949.95, 2937.82, 3000.39, 2816.02, 2898.62, 2824.69, 2831.65, 2889.04, 2977.04, 3039.71, 3022.18],
+            'ICICIBANK': [2703.54, 2800.04, 2881.61, 2808.68, 2861.20, 2902.03, 2755.23, 2890.23, 2772.00, 2776.05, 2801.27, 2864.19, 2874.52, 2863.95, 2691.14, 2850.43, 2906.99, 2877.10, 2864.81, 2860.89, 2831.53, 2889.37, 2839.10, 2810.00, 2847.99, 2749.71, 2746.83, 2724.49, 2785.57, 2854.79],
+            'LT': [965.71, 974.95, 951.24, 971.60, 965.73, 951.69, 1007.13, 957.32, 974.80, 965.31, 1008.21, 993.13, 1013.12, 958.00, 994.22, 962.28, 982.44, 1010.04, 1006.47, 997.25, 976.15, 967.36, 997.47, 1000.09, 985.57, 1017.76, 986.40, 988.69, 987.22, 980.48],
+            'SBIN': [969.83, 924.43, 979.17, 957.33, 937.10, 989.65, 942.97, 942.42, 951.51, 921.85, 946.04, 918.23, 952.28, 949.31, 963.57, 941.91, 924.96, 980.83, 961.67, 937.88, 922.48, 937.79, 941.34, 979.50, 923.15, 993.02, 987.79, 936.74, 932.40, 922.34],
+            'SBIN': [969.83, 924.43, 979.17, 957.33, 937.10, 989.65, 942.97, 942.42, 951.51, 921.85, 946.04, 918.23, 952.28, 949.31, 963.57, 941.91, 924.96, 980.83, 961.67, 937.88, 922.48, 937.79, 941.34, 979.50, 923.15, 993.02, 987.79, 936.74, 932.40, 922.34],
+            'WIPRO': [2773.50, 2865.78, 2767.40, 2877.36, 2747.89, 2892.75, 2810.85, 2820.05, 2817.52, 2877.38, 2784.48, 2804.18, 2907.30, 2774.10, 2813.88, 2713.20, 2878.53, 2812.73, 2920.79, 2821.44, 2760.56, 2881.11, 2898.33, 2898.95, 2823.52, 2783.04, 2892.11, 2821.90, 2874.77, 2737.20],
+            'HINDUNILVR': [1858.44, 1817.78, 1790.95, 1842.54, 1807.98, 1862.98, 1813.10, 1787.47, 1764.70, 1851.08, 1829.29, 1760.83, 1750.86, 1762.79, 1795.69, 1739.75, 1838.33, 1771.95, 1774.82, 1813.32, 1728.73, 1736.96, 1817.64, 1822.92, 1835.85, 1750.94, 1822.13, 1857.15, 1833.09, 1788.44],
+            'AXISBANK': [1869.69, 1816.81, 1800.51, 1867.71, 1797.95, 1867.50, 1827.42, 1786.01, 1785.59, 1921.01, 1852.28, 1843.02, 1849.31, 1833.20, 1784.39, 1851.23, 1831.10, 1792.06, 1824.64, 1828.56, 1794.54, 1842.13, 1894.24, 1815.30, 1874.93, 1909.08, 1834.07, 1925.24, 1891.30, 1890.68]
+        }
+        
+        self.df = pd.DataFrame(self.holdings)
+        self.set_current_prices(manual_current_prices)
+        self.calculate_metrics()
+    
+    def set_current_prices(self, manual_prices=None):
+        """Set current prices from manual input or price history"""
+        if manual_prices is None:
+            # Use the most recent price from price_history
+            current_prices = []
+            for stock in self.df['Stock']:
+                if stock in self.price_history:
+                    # Get the most recent price (last value in the list)
+                    current_price = self.price_history[stock][-1]
+                    current_prices.append(current_price)
+                else:
+                    # Fallback if stock not found in price history
+                    current_prices.append(0)
+        else:
+            # Use manually provided prices
+            current_prices = []
+            for stock in self.df['Stock']:
+                if stock in manual_prices:
+                    current_prices.append(manual_prices[stock])
+                else:
+                    # Fallback to price history if not in manual prices
+                    if stock in self.price_history:
+                        current_prices.append(self.price_history[stock][-1])
+                    else:
+                        current_prices.append(0)
+        
+        self.df['Current_Price'] = current_prices
+        
+        # Print current prices for verification
+        print("📊 CURRENT STOCK PRICES:")
+        print("-" * 40)
+        for _, row in self.df.iterrows():
+            print(f"{row['Stock']:<12}: ₹{row['Current_Price']:>8.2f}")
+        print()
+    
+    def calculate_metrics(self):
+        """Calculate all portfolio metrics"""
+        # Basic calculations
+        self.df['Investment'] = self.df['Quantity'] * self.df['Buy_Price']
+        self.df['Current_Value'] = self.df['Quantity'] * self.df['Current_Price']
+        self.df['Gain_Loss'] = self.df['Current_Value'] - self.df['Investment']
+        self.df['Return_Percent'] = (self.df['Gain_Loss'] / self.df['Investment']) * 100
+        
+        # Valuation classification
+        self.df['Valuation'] = self.df.apply(self.classify_valuation, axis=1)
+        self.df['Recommendation'] = self.df.apply(self.get_recommendation, axis=1)
+        
+        # Portfolio totals
+        self.total_investment = self.df['Investment'].sum()
+        self.current_value = self.df['Current_Value'].sum()
+        self.total_gain_loss = self.current_value - self.total_investment
+        self.total_return_percent = (self.total_gain_loss / self.total_investment) * 100
+        
+    def classify_valuation(self, row):
+        """Classify stock valuation based on P/E, P/B, and EPS"""
+        if row['PE_Ratio'] > 35 or (row['PE_Ratio'] > 30 and row['EPS'] < 50):
+            return 'Overpriced'
+        elif row['PE_Ratio'] < 20 and row['EPS'] > 50:
+            return 'Underpriced'
+        else:
+            return 'Fairly Priced'
+    
+    def get_recommendation(self, row):
+        """Generate buy/sell/hold recommendations"""
+        if row['Return_Percent'] < -20 or row['PE_Ratio'] > 40:
+            return 'SELL'
+        elif row['PE_Ratio'] < 20 and row['EPS'] > 50:
+            return 'BUY MORE'
+        else:
+            return 'HOLD'
+    
+    def print_portfolio_summary(self):
+        """Print comprehensive portfolio summary"""
+        print("="*70)
+        print("📊 STOCK PORTFOLIO ANALYSIS DASHBOARD")
+        print("="*70)
+        print(f"Analysis Date: {datetime.now().strftime('%Y-%m-%d')}")
+        print(f"Performance Period: Last 30 days")
+        print()
+        
+        # Portfolio summary
+        print("💼 PORTFOLIO PERFORMANCE SUMMARY")
+        print("-"*50)
+        print(f"Total Investment:      ₹{self.total_investment:,.2f}")
+        print(f"Current Value:         ₹{self.current_value:,.2f}")
+        print(f"Total Gain/Loss:       ₹{self.total_gain_loss:,.2f}")
+        print(f"Total Return:          {self.total_return_percent:.2f}%")
+        print()
+        
+        # Best and worst performers
+        best_stock = self.df.loc[self.df['Return_Percent'].idxmax()]
+        worst_stock = self.df.loc[self.df['Return_Percent'].idxmin()]
+        
+        print("🏆 BEST PERFORMER")
+        print(f"Stock: {best_stock['Stock']} | Return: {best_stock['Return_Percent']:.2f}% | Gain: ₹{best_stock['Gain_Loss']:,.2f}")
+        print()
+        print("📉 WORST PERFORMER")
+        print(f"Stock: {worst_stock['Stock']} | Return: {worst_stock['Return_Percent']:.2f}% | Loss: ₹{worst_stock['Gain_Loss']:,.2f}")
+        print()
+    
+    def print_detailed_analysis(self):
+        """Print detailed stock-wise analysis"""
+        print("📋 DETAILED STOCK-WISE ANALYSIS")
+        print("="*120)
+        
+        # Create formatted table
+        format_str = "{:<12} {:<8} {:<10} {:<12} {:<12} {:<12} {:<12} {:<10} {:<8} {:<12} {:<10}"
+        print(format_str.format("Stock", "Qty", "Buy Price", "Current", "Investment", "Current Val", "Gain/Loss", "Return%", "P/E", "Valuation", "Action"))
+        print("-"*120)
+        
+        for _, row in self.df.iterrows():
+            print(format_str.format(
+                row['Stock'],
+                row['Quantity'],
+                f"₹{row['Buy_Price']:.2f}",
+                f"₹{row['Current_Price']:.2f}",
+                f"₹{row['Investment']:,.0f}",
+                f"₹{row['Current_Value']:,.0f}",
+                f"₹{row['Gain_Loss']:,.0f}",
+                f"{row['Return_Percent']:.2f}%",
+                f"{row['PE_Ratio']:.2f}",
+                row['Valuation'],
+                row['Recommendation']
+            ))
+        print()
+    
+    def print_recommendations(self):
+        """Print buy/sell recommendations"""
+        print("💡 TRADING RECOMMENDATIONS")
+        print("="*50)
+        
+        # Sell recommendations
+        sell_stocks = self.df[self.df['Recommendation'] == 'SELL']
+        if not sell_stocks.empty:
+            print("🔴 IMMEDIATE SELL RECOMMENDATIONS:")
+            for _, stock in sell_stocks.iterrows():
+                print(f"   • {stock['Stock']}: {stock['Return_Percent']:.2f}% loss | P/E: {stock['PE_Ratio']}")
+        
+        # Buy more recommendations
+        buy_stocks = self.df[self.df['Recommendation'] == 'BUY MORE']
+        if not buy_stocks.empty:
+            print("🟢 BUY MORE RECOMMENDATIONS:")
+            for _, stock in buy_stocks.iterrows():
+                print(f"   • {stock['Stock']}: {stock['Return_Percent']:.2f}% return | P/E: {stock['PE_Ratio']}")
+        
+        # Hold recommendations
+        hold_stocks = self.df[self.df['Recommendation'] == 'HOLD']
+        if not hold_stocks.empty:
+            print("🔵 HOLD RECOMMENDATIONS:")
+            for _, stock in hold_stocks.iterrows():
+                print(f"   • {stock['Stock']}: {stock['Return_Percent']:.2f}% return | P/E: {stock['PE_Ratio']}")
+        print()
+    
+    def create_visualizations(self):
+        """Create comprehensive visualizations"""
+        fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+        fig.suptitle('Stock Portfolio Analysis Dashboard', fontsize=16, fontweight='bold')
+        
+        # 1. Portfolio Performance (Individual Stock Returns)
+        colors = ['green' if x >= 0 else 'red' for x in self.df['Return_Percent']]
+        bars = axes[0, 0].bar(self.df['Stock'], self.df['Return_Percent'], color=colors, alpha=0.7)
+        axes[0, 0].set_title('Individual Stock Returns (%)')
+        axes[0, 0].set_ylabel('Return Percentage')
+        axes[0, 0].tick_params(axis='x', rotation=45)
+        axes[0, 0].grid(axis='y', alpha=0.3)
+        
+        # Add value labels on bars
+        for bar, value in zip(bars, self.df['Return_Percent']):
+            height = bar.get_height()
+            axes[0, 0].text(bar.get_x() + bar.get_width()/2., height,
+                           f'{value:.1f}%', ha='center', va='bottom' if height > 0 else 'top')
+        
+        # 2. Sector Allocation (Pie Chart)
+        sector_allocation = self.df.groupby('Sector')['Current_Value'].sum()
+        axes[0, 1].pie(sector_allocation.values, labels=sector_allocation.index, autopct='%1.1f%%', startangle=90)
+        axes[0, 1].set_title('Sector Allocation by Value')
+        
+        # 3. Gain/Loss by Stock (Bar Chart)
+        colors = ['green' if x >= 0 else 'red' for x in self.df['Gain_Loss']]
+        bars = axes[0, 2].bar(self.df['Stock'], self.df['Gain_Loss'], color=colors, alpha=0.7)
+        axes[0, 2].set_title('Gain/Loss by Stock (₹)')
+        axes[0, 2].set_ylabel('Gain/Loss (₹)')
+        axes[0, 2].tick_params(axis='x', rotation=45)
+        axes[0, 2].grid(axis='y', alpha=0.3)
+        
+        # 4. P/E Ratio Analysis
+        pe_colors = ['red' if x > 35 else 'orange' if x > 25 else 'green' for x in self.df['PE_Ratio']]
+        axes[1, 0].bar(self.df['Stock'], self.df['PE_Ratio'], color=pe_colors, alpha=0.7)
+        axes[1, 0].set_title('P/E Ratio Analysis')
+        axes[1, 0].set_ylabel('P/E Ratio')
+        axes[1, 0].tick_params(axis='x', rotation=45)
+        axes[1, 0].axhline(y=25, color='orange', linestyle='--', label='Caution Level')
+        axes[1, 0].axhline(y=35, color='red', linestyle='--', label='Overvalued')
+        axes[1, 0].legend()
+        axes[1, 0].grid(axis='y', alpha=0.3)
+        
+        # 5. Investment vs Current Value
+        x = np.arange(len(self.df))
+        width = 0.35
+        axes[1, 1].bar(x - width/2, self.df['Investment'], width, label='Investment', alpha=0.7)
+        axes[1, 1].bar(x + width/2, self.df['Current_Value'], width, label='Current Value', alpha=0.7)
+        axes[1, 1].set_title('Investment vs Current Value')
+        axes[1, 1].set_ylabel('Amount (₹)')
+        axes[1, 1].set_xticks(x)
+        axes[1, 1].set_xticklabels(self.df['Stock'], rotation=45)
+        axes[1, 1].legend()
+        axes[1, 1].grid(axis='y', alpha=0.3)
+        
+        # 6. Portfolio Trend - Calculate actual portfolio values from price history
+        portfolio_values = []
+        for i in range(30):  # 30 days of data
+            daily_value = 0
+            for _, row in self.df.iterrows():
+                stock = row['Stock']
+                if stock in self.price_history:
+                    daily_price = self.price_history[stock][i]
+                    daily_value += row['Quantity'] * daily_price
+            portfolio_values.append(daily_value)
+        
+        dates = pd.date_range(start='2025-06-14', end='2025-07-13', periods=30)
+        axes[1, 2].plot(dates, portfolio_values, marker='o', linewidth=2, markersize=4)
+        axes[1, 2].set_title('Portfolio Value Trend (30 Days)')
+        axes[1, 2].set_ylabel('Portfolio Value (₹)')
+        axes[1, 2].tick_params(axis='x', rotation=45)
+        axes[1, 2].grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
+    
+    def create_heatmap(self):
+        """Create correlation heatmap for key metrics"""
+        plt.figure(figsize=(10, 8))
+        
+        # Select numerical columns for correlation
+        corr_data = self.df[['PE_Ratio', 'PB_Ratio', 'EPS', 'Dividend_Yield', 'Return_Percent']].corr()
+        
+        sns.heatmap(corr_data, annot=True, cmap='coolwarm', center=0, square=True, linewidths=0.5)
+        plt.title('Stock Metrics Correlation Heatmap')
+        plt.tight_layout()
+        plt.show()
+    
+    def export_to_excel(self, filename='portfolio_analysis.xlsx'):
+        """Export analysis to Excel file"""
+        with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+            # Main analysis
+            self.df.to_excel(writer, sheet_name='Portfolio_Analysis', index=False)
+            
+            # Summary statistics
+            summary_data = {
+                'Metric': ['Total Investment', 'Current Value', 'Total Gain/Loss', 'Total Return %'],
+                'Value': [self.total_investment, self.current_value, self.total_gain_loss, self.total_return_percent]
+            }
+            pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+            
+            # Sector allocation
+            sector_summary = self.df.groupby('Sector').agg({
+                'Investment': 'sum',
+                'Current_Value': 'sum',
+                'Gain_Loss': 'sum'
+            }).reset_index()
+            sector_summary.to_excel(writer, sheet_name='Sector_Analysis', index=False)
+            
+            # Recommendations
+            recommendations = self.df[['Stock', 'Recommendation', 'Return_Percent', 'PE_Ratio', 'Valuation']]
+            recommendations.to_excel(writer, sheet_name='Recommendations', index=False)
+        
+        print(f"✅ Analysis exported to {filename}")
+    
+    def verify_calculations(self):
+        """Verify the portfolio calculations with detailed breakdown"""
+        print("🔍 PORTFOLIO CALCULATION VERIFICATION")
+        print("="*60)
+        
+        for _, row in self.df.iterrows():
+            investment = row['Quantity'] * row['Buy_Price']
+            current_value = row['Quantity'] * row['Current_Price']
+            gain_loss = current_value - investment
+            return_pct = (gain_loss / investment) * 100
+            
+            print(f"\n{row['Stock']}:")
+            print(f"  Quantity: {row['Quantity']}")
+            print(f"  Buy Price: ₹{row['Buy_Price']:.2f}")
+            print(f"  Current Price: ₹{row['Current_Price']:.2f}")
+            print(f"  Investment: {row['Quantity']} × ₹{row['Buy_Price']:.2f} = ₹{investment:,.2f}")
+            print(f"  Current Value: {row['Quantity']} × ₹{row['Current_Price']:.2f} = ₹{current_value:,.2f}")
+            print(f"  Gain/Loss: ₹{gain_loss:,.2f}")
+            print(f"  Return: {return_pct:.2f}%")
+        
+        print(f"\n📊 PORTFOLIO TOTALS:")
+        print(f"Total Investment: ₹{self.total_investment:,.2f}")
+        print(f"Total Current Value: ₹{self.current_value:,.2f}")
+        print(f"Total Gain/Loss: ₹{self.total_gain_loss:,.2f}")
+        print(f"Total Return: {self.total_return_percent:.2f}%")
+    
+    def run_complete_analysis(self):
+        """Run complete portfolio analysis"""
+        print("🚀 Starting Complete Portfolio Analysis...\n")
+        
+        # Verify calculations first
+        self.verify_calculations()
+        
+        # Print summaries
+        self.print_portfolio_summary()
+        self.print_detailed_analysis()
+        self.print_recommendations()
+        
+        # Create visualizations
+        print("📊 Generating visualizations...")
+        self.create_visualizations()
+        self.create_heatmap()
+        
+        # Export to Excel
+        self.export_to_excel()
+        
+        print("\n✅ Complete analysis finished!")
+        print("📁 Check 'portfolio_analysis.xlsx' for detailed Excel report")
+
+# Usage Example
+if __name__ == "__main__":
+    # Create analyzer instance
+    analyzer = StockPortfolioAnalyzer()
+    
+    # Run complete analysis
+    analyzer.run_complete_analysis()
+    
+    # Additional specific analysis
+    print("\n" + "="*70)
+    print("📈 ADDITIONAL INSIGHTS")
+    print("="*70)
+    
+    # Risk analysis
+    high_risk_stocks = analyzer.df[analyzer.df['PE_Ratio'] > 35]
+    if not high_risk_stocks.empty:
+        print("⚠️  HIGH RISK STOCKS (P/E > 35):")
+        for _, stock in high_risk_stocks.iterrows():
+            print(f"   • {stock['Stock']}: P/E {stock['PE_Ratio']:.2f}, Loss: ₹{stock['Gain_Loss']:,.0f}")
+    
+    # Undervalued opportunities
+    undervalued = analyzer.df[(analyzer.df['PE_Ratio'] < 20) & (analyzer.df['EPS'] > 50)]
+    if not undervalued.empty:
+        print("\n💎 UNDERVALUED OPPORTUNITIES:")
+        for _, stock in undervalued.iterrows():
+            print(f"   • {stock['Stock']}: P/E {stock['PE_Ratio']:.2f}, EPS {stock['EPS']:.2f}")
+    
+    # Sector performance
+    print("\n🏭 SECTOR PERFORMANCE:")
+    sector_performance = analyzer.df.groupby('Sector').agg({
+        'Return_Percent': 'mean',
+        'Current_Value': 'sum'
+    }).round(2)
+    print(sector_performance)
